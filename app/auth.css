@@ -1,0 +1,14 @@
+.auth-panel { margin-top: 22px; text-align: left; }
+.auth-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; background: #f0f6fe; border-radius: 14px; margin-bottom: 20px; }
+.auth-switch button { padding: 10px 7px; border-radius: 10px; font-size: 14px; color: #6985a8; cursor: pointer; }
+.auth-switch button[aria-pressed="true"] { background: white; color: #2473ca; box-shadow: 0 2px 10px #6699cc15; }
+.auth-form fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 15px; }
+.auth-form .field { display: grid; gap: 6px; }
+.auth-form input { width: 100%; min-height: 44px; padding: 10px 14px; border: 1px solid #d8e5f3; border-radius: 11px; background: white; }
+.auth-form input:focus-visible, .auth-switch button:focus-visible, .auth-link:focus-visible { outline: 2px solid #4b94e8; outline-offset: 3px; }
+.auth-form .primary { width: 100%; justify-content: center; margin-top: 5px; cursor: pointer; }
+.auth-link { display: inline-block; color: #317ac4; margin-top: 16px; font-size: 14px; cursor: pointer; }
+.auth-form .error-text, .auth-form .notice { margin: 16px 0 0; }
+.auth-panel button:disabled { opacity: .6; cursor: wait; }
+.signout-button { display: inline-flex; align-items: center; gap: 9px; cursor: pointer; color: #6482aa; font-size: 14px; }
+.nav-footer .signout-button { padding: 12px 14px; background: #f5faffdf; border: 1px solid #e3f0fe; border-radius: 12px; }

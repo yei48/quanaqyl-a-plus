@@ -1,13 +1,15 @@
-import { identity, database, bucket, ensureProfile, protect, json, failure, ApiError, limitedBody } from '@/lib/server';
+import { photoBucket } from '@/lib/storage';
+import { identity, database, ensureProfile, protect, json, failure, ApiError, limitedBody } from '@/lib/server';
 export async function GET() { try {
     const u = await identity();
-    const p = await database().prepare('SELECT photo_key FROM profiles WHERE user_id=?').bind(u.userId).first<any>();
+    const p = await database().prepare('SELECT photo_key FROM quanaqyl.profiles WHERE user_id=$1').bind(u.userId).first<any>();
     if (!p?.photo_key)
         return new Response(null, { status: 404 });
-    const file = await bucket().get(p.photo_key);
+    const { data: file, error } = await (await photoBucket()).download(p.photo_key);
+    if (error) throw error;
     if (!file)
         return new Response(null, { status: 404 });
-    return new Response(file.body, { headers: { 'Content-Type': file.httpMetadata?.contentType || 'application/octet-stream', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
+    return new Response(file, { headers: { 'Content-Type': file.type || 'application/octet-stream', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
 }
 catch (e) {
     return failure(e);
@@ -38,19 +40,21 @@ export async function POST(req: Request) { try {
     if (!type || file.type !== type)
         throw new ApiError('photo_type');
     await ensureProfile(u);
-    const old = await database().prepare('SELECT photo_key FROM profiles WHERE user_id=?').bind(u.userId).first<any>();
-    const key = 'photos/' + crypto.randomUUID();
-    await bucket().put(key, bytes, { httpMetadata: { contentType: type } });
+    const old = await database().prepare('SELECT photo_key FROM quanaqyl.profiles WHERE user_id=$1').bind(u.userId).first<any>();
+    const key = u.userId + '/' + crypto.randomUUID();
+    const storage = await photoBucket();
+    const { error: uploadError } = await storage.upload(key, bytes, { contentType: type, upsert: false });
+    if (uploadError) throw uploadError;
     const stamp = Date.now();
     try {
-        await database().prepare('UPDATE profiles SET photo_key=?,updated_at=? WHERE user_id=?').bind(key, stamp, u.userId).run();
+        await database().prepare('UPDATE quanaqyl.profiles SET photo_key=$1,updated_at=$2 WHERE user_id=$3').bind(key, stamp, u.userId).run();
     }
     catch (e) {
-        await bucket().delete(key);
+        await storage.remove([key]);
         throw e;
     }
     if (old?.photo_key)
-        await bucket().delete(old.photo_key).catch(() => { });
+        await (await photoBucket()).remove([old.photo_key]);
     return json({ photo: '/api/photo?v=' + stamp });
 }
 catch (e) {
@@ -59,10 +63,10 @@ catch (e) {
 export async function DELETE(req: Request) { try {
     protect(req);
     const u = await identity();
-    const old = await database().prepare('SELECT photo_key FROM profiles WHERE user_id=?').bind(u.userId).first<any>();
-    await database().prepare('UPDATE profiles SET photo_key=NULL,updated_at=? WHERE user_id=?').bind(Date.now(), u.userId).run();
+    const old = await database().prepare('SELECT photo_key FROM quanaqyl.profiles WHERE user_id=$1').bind(u.userId).first<any>();
+    await database().prepare('UPDATE quanaqyl.profiles SET photo_key=NULL,updated_at=$1 WHERE user_id=$2').bind(Date.now(), u.userId).run();
     if (old?.photo_key)
-        await bucket().delete(old.photo_key).catch(() => { });
+        await (await photoBucket()).remove([old.photo_key]);
     return json({ photo: null });
 }
 catch (e) {

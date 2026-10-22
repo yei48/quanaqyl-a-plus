@@ -1,8 +1,8 @@
-import {getChatGPTUser,chatGPTSignInPath,chatGPTSignOutPath} from './chatgpt-auth';
+import { getUser } from '@/lib/auth';
 import LearningApp from '@/components/learning-app';
 export const dynamic='force-dynamic';
 export default async function Home() {
-  const user=await getChatGPTUser();
+  const user=await getUser();
   return <LearningApp user={user?{name:user.displayName,email:user.email}:null}
-    signInUrl={chatGPTSignInPath('/')} signOutUrl={chatGPTSignOutPath('/')} />;
+    signOutUrl="/auth/signout" />;
 }

@@ -48,3 +48,5 @@ next-env.d.ts
 update
 # TypeScript build cache
 *.tsbuildinfo
+
+!.env.example

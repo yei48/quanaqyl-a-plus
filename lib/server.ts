@@ -1,19 +1,16 @@
-import { env } from 'cloudflare:workers';
-import { getChatGPTUser } from '@/app/chatgpt-auth';
+import { getUser } from '@/lib/auth';
 import { defaultProfile } from '@/lib/profile';
 import { getShopState } from '@/lib/shop-server';
-export function database() { const db = (env as any).DB as D1Database; if (!db)
-    throw new Error('Storage unavailable'); return db; }
-export function bucket() { const b = (env as any).BUCKET as R2Bucket; if (!b)
-    throw new Error('Upload storage unavailable'); return b; }
-export async function identity() { const u = await getChatGPTUser(); if (!u)
+import { database } from '@/db';
+export { database };
+export async function identity() { const u = await getUser(); if (!u)
     throw new ApiError('unauthorized', 401); return u; }
 export class ApiError extends Error {
     constructor(message: string, public status = 400) { super(message); }
 }
 export function json(data: unknown, status = 200) { return Response.json(data, { status, headers: { 'Cache-Control': 'private, no-store' } }); }
 export function failure(e: unknown) { if (e instanceof ApiError)
-    return json({ error: e.message }, e.status); console.error('Account operation failed', e); return json({ error: 'storage_unavailable' }, 503); }
+    return json({ error: e.message }, e.status); console.error('Account operation failed', e instanceof Error ? e.name : 'unknown'); return json({ error: 'storage_unavailable' }, 503); }
 export function protect(req: Request) { const origin = req.headers.get('origin'); if (origin && origin !== new URL(req.url).origin)
     throw new ApiError('forbidden', 403); if (req.headers.get('sec-fetch-site') === 'cross-site')
     throw new ApiError('forbidden', 403); }
@@ -65,9 +62,9 @@ export async function payload(req: Request) {
 export async function ensureProfile(user: {
     userId: string;
     displayName: string;
-}) { const data = defaultProfile(user.displayName); await database().prepare('INSERT INTO profiles (user_id,data,updated_at) VALUES (?,?,?) ON CONFLICT(user_id) DO NOTHING').bind(user.userId, JSON.stringify(data), Date.now()).run(); }
+}) { const data = defaultProfile(user.displayName); await database().prepare('INSERT INTO quanaqyl.profiles (user_id,data,updated_at) VALUES ($1,$2,$3) ON CONFLICT(user_id) DO NOTHING').bind(user.userId, JSON.stringify(data), Date.now()).run(); }
 export async function account(user: {
     userId: string;
     displayName: string;
     email: string;
-}) { await ensureProfile(user); const db = database(); const [p, a, w, f, shop] = await Promise.all([db.prepare('SELECT data,photo_key,updated_at FROM profiles WHERE user_id=?').bind(user.userId).first<any>(), db.prepare('SELECT data FROM attempts WHERE user_id=? ORDER BY created_at DESC LIMIT 500').bind(user.userId).all<any>(), db.prepare('SELECT key,amount,created_at FROM awards WHERE user_id=? ORDER BY created_at DESC').bind(user.userId).all<any>(), db.prepare('SELECT id,start,end FROM pauses WHERE user_id=? ORDER BY start DESC').bind(user.userId).all<any>(), getShopState(db, user.userId)]); return { shop, profile: { ...defaultProfile(user.displayName), ...JSON.parse(p.data) }, photo: p.photo_key ? '/api/photo?v=' + p.updated_at : null, attempts: a.results.map(r => JSON.parse(r.data)), awards: w.results, pauses: f.results, email: user.email }; }
+}) { await ensureProfile(user); const db = database(); const [p, a, w, f, shop] = await Promise.all([db.prepare('SELECT data,photo_key,updated_at FROM quanaqyl.profiles WHERE user_id=$1').bind(user.userId).first<any>(), db.prepare('SELECT data FROM quanaqyl.attempts WHERE user_id=$1 ORDER BY created_at DESC LIMIT 500').bind(user.userId).all<any>(), db.prepare('SELECT key,amount,created_at FROM quanaqyl.awards WHERE user_id=$1 ORDER BY created_at DESC').bind(user.userId).all<any>(), db.prepare('SELECT id,start,"end" FROM quanaqyl.pauses WHERE user_id=$1 ORDER BY start DESC').bind(user.userId).all<any>(), getShopState(db, user.userId)]); return { shop, profile: { ...defaultProfile(user.displayName), ...JSON.parse(p.data) }, photo: p.photo_key ? '/api/photo?v=' + p.updated_at : null, attempts: a.results.map(r => JSON.parse(r.data)), awards: w.results, pauses: f.results, email: user.email }; }

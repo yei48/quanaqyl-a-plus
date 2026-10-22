@@ -3,6 +3,7 @@ import "./globals.css";
 import "./portal.css";
 import "./shop.css";
 import "./focus.css";
+import "./auth.css";
 
 export const metadata: Metadata = {
   title: "QuanAQYL A+ — Физика",
