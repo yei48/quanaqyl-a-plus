@@ -1,6 +1,7 @@
 import 'server-only';
 import { Pool, types, type PoolClient } from 'pg';
 import { Database, type Transport, type Isolation } from './adapter';
+import { storageDiagnostic } from '@/lib/storage-diagnostic';
 
 types.setTypeParser(20, value => {
   const number = Number(value);
@@ -10,16 +11,18 @@ types.setTypeParser(20, value => {
 let pool: Pool | undefined;
 function connectionPool() {
   if (pool) return pool;
-  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not configured');
-  const url = new URL(process.env.DATABASE_URL);
-  if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('DATABASE_URL must use PostgreSQL');
+  if (!process.env.DATABASE_URL) throw Object.assign(new Error('DATABASE_URL is not configured'), { code: 'DATABASE_URL_MISSING' });
+  let url: URL;
+  try { url = new URL(process.env.DATABASE_URL); }
+  catch { throw Object.assign(new Error('DATABASE_URL must use PostgreSQL'), { code: 'DATABASE_URL_INVALID' }); }
+  if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw Object.assign(new Error('DATABASE_URL must use PostgreSQL'), { code: 'DATABASE_URL_INVALID' });
   for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert']) url.searchParams.delete(key);
   pool = new Pool({
     connectionString: url.toString(), max: 1, idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 10000, allowExitOnIdle: true,
     ssl: { rejectUnauthorized: true, ...(process.env.DATABASE_SSL_CERT ? { ca: process.env.DATABASE_SSL_CERT } : {}) },
   });
-  pool.on('error', () => console.error('Idle database connection failed'));
+  pool.on('error', error => console.error('Idle database connection failed', storageDiagnostic(error)));
   return pool;
 }
 function transport(client?: PoolClient): Transport {

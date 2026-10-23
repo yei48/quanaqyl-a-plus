@@ -112,6 +112,21 @@ Build Command: npm run build
 
 Не присылай пароли или ключи. Для диагностики достаточно текста ошибки без секретов и имени неработающего шага.
 
+### Если профиль и таймер не загружаются после входа
+
+Открой проект в Vercel → **Logs**, затем обнови сайт. В журнале найди запрос `/api/account` или `/api/focus` и сообщение **Account operation failed**. Диагностика показывает только код и описание, без пароля, строки подключения и данных аккаунта.
+
+| Код | Что сделать |
+| --- | --- |
+| `DATABASE_URL_MISSING` | Добавить `DATABASE_URL` как Secret для Production и сделать Redeploy |
+| `DATABASE_URL_INVALID` | Проверить, что это полная PostgreSQL-строка из Supabase Connect, а не адрес сайта или имя базы |
+| `28P01` | Проверить пароль базы в строке подключения; это не пароль входа на сайт |
+| `ENOTFOUND`, `ENETUNREACH`, `ETIMEDOUT`, `CONNECTION_TIMEOUT` | Проверить адрес и порт Transaction pooler из Supabase Connect |
+| `SELF_SIGNED_CERT_IN_CHAIN`, `UNABLE_TO_VERIFY_LEAF_SIGNATURE`, `UNABLE_TO_GET_ISSUER_CERT_LOCALLY` | Скачать CA-сертификат из настроек базы Supabase, добавить его PEM-текст как `DATABASE_SSL_CERT` и сделать Redeploy |
+| `42501`, `42P01` | Проверить подключение к нужному проекту, миграции и права роли базы |
+
+Подтверждение почты требуется после регистрации, а не при каждом входе. Для повторного входа используй вкладку **Войти** и тот же адрес сайта. При ошибке пароля нажми **Забыла пароль?**; создание аккаунта повторно не восстанавливает пароль.
+
 ## Документация сервисов
 
 - [Supabase SSR и проверка сессии](https://supabase.com/docs/guides/auth/server-side/creating-a-client)

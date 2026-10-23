@@ -10,6 +10,15 @@ import { testModules } from './test-support.mjs';
 const modules = await testModules();
 let pg;
 try {
+  const { storageDiagnostic } = await modules.load('lib/storage-diagnostic');
+  for (const code of ['DATABASE_URL_MISSING', 'DATABASE_URL_INVALID', '28P01', '42501', 'ENOTFOUND', 'ENETUNREACH', 'SELF_SIGNED_CERT_IN_CHAIN']) {
+    assert.equal(storageDiagnostic({ code, message: 'postgres://private:secret@db.example/private' }).code, code);
+  }
+  assert.equal(storageDiagnostic(new Error('Connection terminated due to connection timeout')).code, 'CONNECTION_TIMEOUT');
+  for (const error of [null, new Error('password=secret'), { code: 'secret', detail: 'private account data' }, { code: '__proto__' }]) {
+    assert.deepEqual(storageDiagnostic(error), { code: 'STORAGE_ERROR', reason: 'Unclassified storage failure' });
+  }
+  assert.ok(!JSON.stringify(storageDiagnostic({ code: '28P01', message: 'secret', detail: 'private', stack: 'secret' })).includes('secret'));
   const { Database } = await modules.load('db/adapter');
   const { commandFocus, getFocusState } = await modules.load('lib/focus-server');
   const { purchaseProduct, getShopState } = await modules.load('lib/shop-server');

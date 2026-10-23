@@ -2,6 +2,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { browserClient } from '@/lib/supabase/client';
 import { authConfigured } from '@/lib/supabase/config';
+import { authErrorLabel } from '@/lib/auth-error';
 import { L, type Lang } from '@/lib/catalog';
 
 const labels = {
@@ -15,7 +16,8 @@ const labels = {
   wait: L('Please wait…', 'Подожди…', 'Күте тұр…'),
   check: L('Check your e-mail and follow the link. You may need to check Spam.', 'Проверь почту и перейди по ссылке. Загляни также в «Спам».', 'Поштаңды тексеріп, сілтемені аш. «Спам» қалтасын да тексер.'),
   recoverySent: L('If this address has an account, a reset link will arrive by e-mail.', 'Если для этого адреса есть аккаунт, на почту придёт ссылка для смены пароля.', 'Бұл мекенжайда аккаунт болса, құпиясөзді өзгерту сілтемесі поштаға келеді.'),
-  invalid: L('Check your e-mail and password, and confirm your e-mail if you just registered.', 'Проверь e-mail и пароль. Если ты только зарегистрировалась, подтверди почту.', 'E-mail мен құпиясөзді тексер. Жаңа тіркелсең, поштаңды раста.'),
+  invalid: L('Incorrect e-mail or password. Try again or choose “Forgot password?”.', 'Неверный e-mail или пароль. Попробуй снова или нажми «Забыла пароль?».', 'E-mail немесе құпиясөз қате. Қайталап көр немесе «Құпиясөзді ұмыттың ба?» түймесін бас.'),
+  unconfirmed: L('Confirm your e-mail using the link in your registration e-mail, then sign in.', 'Подтверди почту по ссылке из письма о регистрации, затем войди.', 'Тіркелу туралы хаттағы сілтеме арқылы поштаңды раста, содан кейін кір.'),
   short: L('Use at least 8 characters for your password.', 'Пароль должен содержать минимум 8 символов.', 'Құпиясөз кемінде 8 таңбадан тұруы керек.'),
   mismatch: L('Passwords do not match.', 'Пароли не совпадают.', 'Құпиясөздер сәйкес келмейді.'),
   failed: L('Could not complete the request. Please try again later.', 'Не удалось выполнить запрос. Попробуй немного позже.', 'Сұрауды орындау мүмкін болмады. Кейінірек қайтала.'),
@@ -61,8 +63,7 @@ export default function AuthForm({ lang, reset = false }: { lang: Lang; reset?: 
         setMessage('recoverySent');
       }
     } catch (error) {
-      const code = (error as { code?: string }).code;
-      setError(code?.includes('rate_limit') ? 'limit' : code === 'weak_password' ? 'short' : mode === 'login' && !reset ? 'invalid' : 'failed');
+      setError(authErrorLabel(error));
     } finally { setBusy(false); }
   }
   if (!authConfigured()) return <p className="notice" role="status">{t('unavailable')}</p>;

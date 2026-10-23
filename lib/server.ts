@@ -2,6 +2,7 @@ import { getUser } from '@/lib/auth';
 import { defaultProfile } from '@/lib/profile';
 import { getShopState } from '@/lib/shop-server';
 import { database } from '@/db';
+import { storageDiagnostic } from '@/lib/storage-diagnostic';
 export { database };
 export async function identity() { const u = await getUser(); if (!u)
     throw new ApiError('unauthorized', 401); return u; }
@@ -9,8 +10,11 @@ export class ApiError extends Error {
     constructor(message: string, public status = 400) { super(message); }
 }
 export function json(data: unknown, status = 200) { return Response.json(data, { status, headers: { 'Cache-Control': 'private, no-store' } }); }
-export function failure(e: unknown) { if (e instanceof ApiError)
-    return json({ error: e.message }, e.status); console.error('Account operation failed', e instanceof Error ? e.name : 'unknown'); return json({ error: 'storage_unavailable' }, 503); }
+export function failure(e: unknown) {
+    if (e instanceof ApiError) return json({ error: e.message }, e.status);
+    console.error('Account operation failed', storageDiagnostic(e));
+    return json({ error: 'storage_unavailable' }, 503);
+}
 export function protect(req: Request) { const origin = req.headers.get('origin'); if (origin && origin !== new URL(req.url).origin)
     throw new ApiError('forbidden', 403); if (req.headers.get('sec-fetch-site') === 'cross-site')
     throw new ApiError('forbidden', 403); }
